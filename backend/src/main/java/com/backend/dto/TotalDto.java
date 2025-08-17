@@ -16,4 +16,13 @@ public class TotalDto implements Serializable {
 	private Enquete enquete;
 	private List<DeptAnswer> deptAnswerList;
 	private List<QuestionItem> questionList;
+	
+	public void addDeptAnswer(DeptAnswer deptAnswer) {
+		deptAnswerList.add(deptAnswer);
+	}
+	
+	public void addQuestionList(QuestionItem questionItem) {
+		questionList.add(questionItem);
+	}
+	
 }

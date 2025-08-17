@@ -7,24 +7,26 @@ import java.util.List;
 import com.backend.entity.Choice;
 import com.backend.entity.Question;
 
+import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Data
 @NoArgsConstructor
+@AllArgsConstructor
 public class QuestionItem implements Serializable{
 	private Question question;
 	private List<Choice> choiceList;
 	
-	public QuestionItem(Question question, List<Choice> choiceList) {
-		this.question = question;
-		choiceList.sort(Comparator.comparing(choice -> choice.getChoiceNumber()));
-		this.choiceList = choiceList;
+	public void sortChoiceListByChoiceNumber() {
+		this.choiceList.sort(Comparator.comparing(
+		choice -> choice.getChoiceNumber()
+		));
 	}
 	
-	public List<Choice> getChoiceList(){
-		choiceList.sort(Comparator.comparing(choice -> choice.getChoiceId()));
-		return choiceList;
-		
+	public void sortChoiceListByChoiceId() {
+		this.choiceList.sort(Comparator.comparing(
+		choice -> choice.getChoiceId()
+		));
 	}
 }

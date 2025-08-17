@@ -3,9 +3,7 @@ package com.backend.dto;
 import java.util.Comparator;
 import java.util.List;
 
-import com.backend.entity.Choice;
 import com.backend.entity.Enquete;
-import com.backend.entity.Question;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -18,12 +16,7 @@ public class EditEnqueteContentDto {
 	private Enquete enquete;
 	private List<QuestionItem> questionList;
 	
-	public QuestionItem getQuestionItem(int questionIndex) {
-		return questionList.get(questionIndex);
-	}
-	
-	public void addQuestionItem(Question question, List<Choice> choiceList) {
-		QuestionItem questionItem = new QuestionItem(question, choiceList);
+	public void addQuestionItem(QuestionItem questionItem) {
 		questionList.add(questionItem);
 	}
 	
