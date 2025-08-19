@@ -9,7 +9,7 @@ import com.backend.exception.UnauthorizedAccessException;
 public interface AnswerEnqueteService {
 	
 	public AnswerEnqueteDto getEnqueteAnswer(
-			TopRespondentEnqueteDto requestEnqDto, String esqId) 
+			TopRespondentEnqueteDto requestEnqDto, String esqId, boolean isReadOnly) 
 			throws ItemNotFoundException, UnauthorizedAccessException;
 	
 	public void saveEnqueteAnswer(

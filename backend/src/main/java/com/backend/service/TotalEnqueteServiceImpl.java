@@ -78,7 +78,7 @@ public class TotalEnqueteServiceImpl implements TotalEnqueteService {
 		Enquete enquete = enqueteDao.selectById(enqueteId);
 		
 		EnqueteAdminUser adminUser = enqueteAdminUserDao.selectById(enqueteId, adminEsqId);
-		if(adminUser == null) {
+		if(adminUser == null  || adminUser.getDeleteFlag().equals(Integer.valueOf(1))) {
 			throw new UnauthorizedAccessException("リクエストしたアンケートの管理者権限がありません。");
 		}
 		if(enquete == null) {
@@ -178,7 +178,7 @@ public class TotalEnqueteServiceImpl implements TotalEnqueteService {
 						Object answer;
 						List<ChoiceAnswer> choiceAnswerList = 
 								choiceAnswerDao.selectAllByQuestionAnswerId(
-										qAnswer.getQuestionAsnwerId());
+										qAnswer.getQuestionAnswerId());
 						// 回答形式ごとに分岐
 						switch(choiceAnswerList.size()) {
 							// 単一回答

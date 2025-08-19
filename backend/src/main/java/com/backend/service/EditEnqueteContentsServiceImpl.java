@@ -1,5 +1,7 @@
 package com.backend.service;
 
+import java.sql.Date;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -133,9 +135,21 @@ public class EditEnqueteContentsServiceImpl implements EditEnqueteContentsServic
 		// アンケート情報を取得
 		Enquete enquete = editEnqueteContentDto.getEnquete();
 		Integer enqueteId = enquete.getEnqueteId();
-
-		// 認証 (失敗の場合は例外がスロー)
-		authorize(enqueteId, adminEsqId);
+		
+		// アンケートが初めて保存される場合
+		if(enqueteId < 1) {
+			enquete.setCreateUserId(adminEsqId);
+			enquete.setEnqueteStateId(1);
+			enquete.setVersion(0);
+			LocalDate localDate = LocalDate.now();
+			Date startDate = Date.valueOf(localDate);
+			enquete.setCreateDate(startDate);
+			enqueteDao.insert(enquete);
+			enqueteId = enquete.getEnqueteId();
+		}else {
+			// 認証 (失敗の場合は例外がスロー)
+			authorize(enqueteId, adminEsqId);			
+		}
 		
 		// 情報の更新
 		// 保存前の質問情報をデータベースから取得
@@ -153,10 +167,16 @@ public class EditEnqueteContentsServiceImpl implements EditEnqueteContentsServic
 		// 保存内容を editEnqueteContentDto から取得
 		List<Question> newQuestionList = new ArrayList<>();
 		List<Choice> newChoiceList = new ArrayList<>();
+		// 新しく追加された設問のみ格納
+		List<QuestionItem> noIdQuestionItemList = new ArrayList<>();
 		// のちの比較のため, id順にソート
 		editEnqueteContentDto.sortQuestionListByQuestionId();
 		List<QuestionItem> questionList = editEnqueteContentDto.getQuestionList();
 		for(QuestionItem questionItem: questionList) {
+			if(questionItem.getQuestion().getQuestionId()<1) {
+				noIdQuestionItemList.add(questionItem);
+				continue;
+			}
 			newQuestionList.add(questionItem.getQuestion());
 			// のちの比較のため, id順にソート
 			questionItem.sortChoiceListByChoiceId();
@@ -300,6 +320,16 @@ public class EditEnqueteContentsServiceImpl implements EditEnqueteContentsServic
 			// 例外名はdomaのversion管理例外に合わせる (OptimisticLockException?)
 			}catch (Exception e) {
 				throw new SystemException(e.getMessage());
+			}
+		}
+		 // 新しく追加された設問の挿入
+		for(QuestionItem questionItem: noIdQuestionItemList) {
+			Question question = questionItem.getQuestion();
+			questionDao.insert(question);
+			Integer questionId = question.getQuestionId();
+			for(Choice choice: questionItem.getChoiceList()) {
+				choice.setQuestionId(questionId);
+				choiceDao.insert(choice);
 			}
 		}
 	}
