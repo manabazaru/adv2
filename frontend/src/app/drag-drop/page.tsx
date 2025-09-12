@@ -1,203 +1,170 @@
 'use client';
 
-import React, { useRef, useState } from 'react';
+import * as React from 'react';
+import {
+  Box,
+  Button,
+  Card,
+  CardContent,
+  Container,
+  Stack,
+  Typography,
+} from '@mui/material';
 
-type Card = {
-  id: string;
-  createdNo: number; // 作成順を示す番号（固定表示用）
-};
+// カード1枚分の型。createdNoは作成順（表示順が変わっても固定）
+interface Item {
+  id: number; // 一意ID（表示順入れ替えに使用）
+  createdNo: number; // 作成順（カードに表示）
+}
 
 export default function Page() {
-  const [cards, setCards] = useState<Card[]>([
-    { id: 'c1', createdNo: 1 },
-    { id: 'c2', createdNo: 2 },
-    { id: 'c3', createdNo: 3 },
+  const [items, setItems] = React.useState<Item[]>([
+    { id: 1, createdNo: 1 },
+    { id: 2, createdNo: 2 },
+    { id: 3, createdNo: 3 },
   ]);
-  const [nextNo, setNextNo] = useState(4);
+  const [nextId, setNextId] = React.useState(4);
+  const [nextCreatedNo, setNextCreatedNo] = React.useState(4);
 
-  // 現在ドラッグ中のカードID
-  const draggingId = useRef<string | null>(null);
+  // ドラッグ中のカードIDと、ホバー中の挿入インデックス
+  const [draggingId, setDraggingId] = React.useState<number | null>(null);
+  const [hoverInsertIndex, setHoverInsertIndex] = React.useState<number | null>(null);
 
-  // 現在ホバー中のドロップインデックス（見た目ハイライト用）
-  const [hoverIndex, setHoverIndex] = useState<number | null>(null);
-
-  // 指定位置へカードを挿入する
-  const handleDropAt = (insertIndex: number) => {
-    const srcId = draggingId.current;
-    if (!srcId) return;
-
-    setCards(prev => {
-      const from = prev.findIndex(c => c.id === srcId);
-      if (from === -1) return prev.slice();
-
-      const arr = prev.slice();
-      const [moved] = arr.splice(from, 1);
-
-      // 取り除いた後に右側へ挿入する場合、インデックスが1つ左に詰まるので補正
-      let idx = insertIndex;
-      if (idx > from) idx -= 1;
-
-      arr.splice(idx, 0, moved);
-      return arr;
-    });
-
-    setHoverIndex(null);
-    draggingId.current = null;
+  const onAddCard = () => {
+    setItems((prev) => [...prev, { id: nextId, createdNo: nextCreatedNo }]);
+    setNextId((v) => v + 1);
+    setNextCreatedNo((v) => v + 1);
   };
 
-  const handleAddCard = () => {
-    setCards(prev => [...prev, { id: `c${crypto.randomUUID()}`, createdNo: nextNo }]);
-    setNextNo(n => n + 1);
+  // 配列の要素を from から to に移動
+  const moveItem = (arr: Item[], from: number, to: number) => {
+    const copy = arr.slice();
+    const [moved] = copy.splice(from, 1);
+    copy.splice(to, 0, moved);
+    return copy;
   };
 
-  // ドロップゾーン（挿入位置を表すコンポーネント）
+  const handleDragStart = (e: React.DragEvent, id: number) => {
+    e.dataTransfer.setData('text/plain', String(id));
+    e.dataTransfer.effectAllowed = 'move';
+    setDraggingId(id);
+  };
+
+  const handleDragEnd = () => {
+    setDraggingId(null);
+    setHoverInsertIndex(null);
+  };
+
+  const handleZoneDragOver = (e: React.DragEvent, insertIndex: number) => {
+    e.preventDefault(); // これがないとdropできない
+    e.dataTransfer.dropEffect = 'move';
+    setHoverInsertIndex(insertIndex);
+  };
+
+  const handleZoneDrop = (e: React.DragEvent, insertIndex: number) => {
+    e.preventDefault();
+    const idStr = e.dataTransfer.getData('text/plain');
+    const id = Number(idStr);
+    const fromIndex = items.findIndex((it) => it.id === id);
+    if (fromIndex === -1) return;
+
+    // 元の位置より右（下）に挿入する場合は、取り除いた分だけインデックスを1つ詰める
+    let toIndex = insertIndex;
+    if (fromIndex < insertIndex) {
+      toIndex = insertIndex - 1;
+    }
+    if (toIndex === fromIndex || toIndex < 0) {
+      setHoverInsertIndex(null);
+      return;
+    }
+
+    setItems((prev) => moveItem(prev, fromIndex, toIndex));
+    setHoverInsertIndex(null);
+    setDraggingId(null);
+  };
+
+  // ドロップ領域コンポーネント（点線・角丸）
   const DropZone: React.FC<{ index: number }> = ({ index }) => {
-    const active = hoverIndex === index;
+    const active = hoverInsertIndex === index;
     return (
-      <div
-        onDragOver={(e) => {
-          e.preventDefault(); // これが無いと drop が発火しない
-        }}
-        onDragEnter={(e) => {
-          e.preventDefault();
-          setHoverIndex(index);
-        }}
-        onDragLeave={() => setHoverIndex(null)}
-        onDrop={() => handleDropAt(index)}
-        style={{
-          height: 32,
-          margin: '8px 0',
-          border: '2px dotted #999',
-          borderRadius: 12,
+      <Box
+        onDragOver={(e) => handleZoneDragOver(e, index)}
+        onDrop={(e) => handleZoneDrop(e, index)}
+        onDragLeave={() => setHoverInsertIndex((cur) => (cur === index ? null : cur))}
+        sx={{
+          border: '2px dashed',
+          borderColor: active ? 'primary.main' : 'divider',
+          borderRadius: 2,
+          height: 44,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          opacity: active ? 1 : 0.6,
-          background: active ? 'rgba(0,0,0,0.05)' : 'transparent',
-          transition: 'background 120ms ease, opacity 120ms ease',
-          userSelect: 'none',
-        }}
-        aria-label={`dropzone-${index}`}
-      >
-        <span style={{ fontSize: 12, color: '#666' }}>
-          ここにドロップして挿入
-        </span>
-      </div>
-    );
-  };
-
-  // 表示用のカード
-  const CardView: React.FC<{ card: Card; index: number }> = ({ card }) => {
-    return (
-      <div
-        draggable
-        onDragStart={(e) => {
-          draggingId.current = card.id;
-          e.dataTransfer.effectAllowed = 'move';
-          // Firefox対策: setDataが無いとdragできないケースがある
-          e.dataTransfer.setData('text/plain', card.id);
-        }}
-        onDragEnd={() => {
-          draggingId.current = null;
-          setHoverIndex(null);
-        }}
-        style={{
-          padding: 16,
-          border: '1px solid #ddd',
-          borderRadius: 12,
-          background: '#fff',
-          boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
-          cursor: 'grab',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 12,
+          bgcolor: active ? 'action.hover' : 'transparent',
+          transition: 'all .15s ease',
+          mb: 1,
         }}
       >
-        <div
-          aria-hidden
-          style={{
-            width: 28,
-            height: 28,
-            borderRadius: 8,
-            background: '#f2f2f2',
-            display: 'grid',
-            placeItems: 'center',
-            fontWeight: 700,
-            color: '#333',
-          }}
-          title="作成順（固定）"
-        >
-          {card.createdNo}
-        </div>
-        <div style={{ fontWeight: 600, color: '#222' }}>
-          カード ID: <code>{card.id.slice(0, 8)}</code>
-        </div>
-        <div style={{ marginLeft: 'auto', color: '#888', fontSize: 12 }}>
-          ドラッグして移動
-        </div>
-      </div>
+        <Typography variant="body2" color="text.secondary">
+          {active ? 'ここにドロップ' : 'ドロップ領域'}
+        </Typography>
+      </Box>
     );
   };
 
   return (
-    <main
-      style={{
-        minHeight: '100svh',
-        display: 'grid',
-        placeItems: 'start center',
-        background: '#fafafa',
-        padding: 24,
-      }}
-    >
-      <div style={{ width: 'min(720px, 92vw)' }}>
-        {/* ヘッダー & 右寄せボタン（横配置） */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 12,
-            marginBottom: 16,
-          }}
-        >
-          <h1 style={{ margin: 0, fontSize: 20, fontWeight: 700 }}>ドラッグ＆ドロップ例</h1>
-          <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
-            <button
-              type="button"
-              onClick={handleAddCard}
-              style={{
-                padding: '10px 14px',
-                borderRadius: 10,
-                border: '1px solid #ddd',
-                background: '#fff',
-                boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
-                cursor: 'pointer',
-                fontWeight: 600,
+    <Container maxWidth="sm" sx={{ py: 4 }}>
+      {/* ヘッダーバー：タイトル + 追加ボタン（横並び） */}
+      <Stack direction="row" alignItems="center" justifyContent="space-between" mb={2}>
+        <Typography variant="h5" fontWeight={700}>
+          ドラッグ&ドロップ（MUI）
+        </Typography>
+        <Button variant="contained" onClick={onAddCard}>
+          カードを追加
+        </Button>
+      </Stack>
+
+      {/* 縦並びリスト：各カードの前後にドロップ領域を配置 */}
+      <Stack>
+        {/* 先頭用ドロップ領域（index = 0） */}
+        <DropZone index={0} />
+
+        {items.map((item, i) => (
+          <React.Fragment key={item.id}>
+            <Card
+              draggable
+              onDragStart={(e) => handleDragStart(e, item.id)}
+              onDragEnd={handleDragEnd}
+              sx={{
+                mb: 1,
+                cursor: 'grab',
+                boxShadow: draggingId === item.id ? 6 : 1,
+                border: draggingId === item.id ? 2 : 1,
+                borderColor: draggingId === item.id ? 'primary.main' : 'divider',
               }}
-              title="右側のボタン（横配置）でカード追加"
+              aria-grabbed={draggingId === item.id}
+              aria-label={`カード ${item.createdNo}`}
+              role="listitem"
             >
-              カードを追加
-            </button>
-          </div>
-        </div>
+              <CardContent>
+                <Typography variant="h6">Card #{item.createdNo}</Typography>
+                <Typography variant="body2" color="text.secondary">
+                  作成順は固定（並べ替えても番号は変わりません）
+                </Typography>
+              </CardContent>
+            </Card>
 
-        {/* リスト本体：各カードの前後にドロップ領域 */}
-        <div style={{ background: '#ffffff', border: '1px solid #eee', borderRadius: 14, padding: 16 }}>
-          {/* 先頭のドロップゾーン（index=0 に挿入） */}
-          <DropZone index={0} />
+            {/* 各カードの直後のドロップ領域（index = i+1） */}
+            <DropZone index={i + 1} />
+          </React.Fragment>
+        ))}
+      </Stack>
 
-          {cards.map((card, i) => (
-            <React.Fragment key={card.id}>
-              <CardView card={card} index={i} />
-              {/* 各カードの後ろにもドロップゾーン（挿入先 index = i+1） */}
-              <DropZone index={i + 1} />
-            </React.Fragment>
-          ))}
-        </div>
-
-        <p style={{ color: '#666', fontSize: 12, marginTop: 12 }}>
-          ※ 各カードの上下にある点線の角丸枠がドロップ領域です。カードの左の数字は「作成順（固定表示）」です。
-        </p>
-      </div>
-    </main>
+      {/* 補足情報 */}
+      <Box mt={3}>
+        <Typography variant="caption" color="text.secondary">
+          ・HTML5のDrag & Drop APIのみで実装（追加ライブラリ不要）
+        </Typography>
+      </Box>
+    </Container>
   );
 }
